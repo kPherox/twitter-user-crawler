@@ -7,22 +7,77 @@ import (
 
 type CrawlerStore struct {
 	bf *os.File
+	db *SQLite3
 }
 
-func NewCrawlerStore() (*CrawlerStore, error) {
-	bf, err := os.OpenFile("last.id", os.O_RDWR|os.O_CREATE, 0644)
-	if err != nil {
-		return nil, err
+func NewCrawlerStore(filename string, isDatabase bool) (*CrawlerStore, error) {
+	if isDatabase {
+		return newCrawlerStoreDB(filename)
 	}
-	return &CrawlerStore{bf: bf}, nil
+
+	return newCrawlerStoreFile(filename)
+}
+
+func newCrawlerStoreDB(filename string) (cs *CrawlerStore, err error) {
+	db, err := NewSQLite3(filename)
+	if err != nil {
+		return
+	}
+	cs = &CrawlerStore{db: db}
+	return
+}
+
+func newCrawlerStoreFile(filename string) (cs *CrawlerStore, err error) {
+	bf, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return
+	}
+	cs = &CrawlerStore{bf: bf}
+	return
 }
 
 func (cs *CrawlerStore) Close() error {
-	return cs.bf.Close()
+	if cs.db != nil {
+		return cs.db.Close()
+	}
+	if cs.bf != nil {
+		return cs.bf.Close()
+	}
+	return nil
 }
 
 func (cs *CrawlerStore) GetIDs(max int) [][]int64 {
-	offset := cs.getLastOffset()
+	if cs.db != nil {
+		return cs.getIDsFromDB(max)
+	}
+	if cs.bf != nil {
+		return cs.getIDsFromFile(max)
+	}
+	return nil
+}
+
+func (cs *CrawlerStore) getIDsFromDB(max int) [][]int64 {
+	ids, err := cs.db.GetIDs(int64(max) * 100)
+	if err != nil {
+		return nil
+	}
+
+	chunks := make([][]int64, 0, max)
+	for i := 0; i < len(ids); i += 100 {
+		end := i + 100
+
+		if end > len(ids) {
+			end = len(ids)
+		}
+
+		chunks = append(chunks, ids[i:end])
+	}
+
+	return chunks
+}
+
+func (cs *CrawlerStore) getIDsFromFile(max int) [][]int64 {
+	offset := cs.getOffsetFromFile()
 
 	chunks := make([][]int64, max)
 	for ci := 0; ci < max; ci++ {
@@ -37,7 +92,7 @@ func (cs *CrawlerStore) GetIDs(max int) [][]int64 {
 	return chunks
 }
 
-func (cs *CrawlerStore) getLastOffset() int64 {
+func (cs *CrawlerStore) getOffsetFromFile() int64 {
 	var r int64
 	if err := binary.Read(cs.bf, binary.LittleEndian, &r); err != nil {
 		if _, err := os.Stat("twitter.db"); os.IsNotExist(err) {
@@ -51,11 +106,24 @@ func (cs *CrawlerStore) getLastOffset() int64 {
 		db.Close()
 		return offset
 	}
-
 	return r
 }
 
 func (cs *CrawlerStore) SetLastOffset(offset int64) error {
+	if cs.db != nil {
+		return cs.setOffsetFromDB(offset)
+	}
+	if cs.bf != nil {
+		return cs.setOffsetFromFile(offset)
+	}
+	return nil
+}
+
+func (cs *CrawlerStore) setOffsetFromDB(offset int64) error {
+	return cs.db.DeleteIDs(offset)
+}
+
+func (cs *CrawlerStore) setOffsetFromFile(offset int64) error {
 	cs.bf.Truncate(0)
 	cs.bf.Seek(0, 0)
 	return binary.Write(cs.bf, binary.LittleEndian, offset)

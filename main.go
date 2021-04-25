@@ -18,6 +18,7 @@ func main() {
 	flags := struct {
 		printProgressBar bool
 		dotenvFilename   string
+		refetchDatabase  string
 		consumerKey      string
 		consumerSecret   string
 		accessToken      string
@@ -25,6 +26,7 @@ func main() {
 	}{}
 	flag.BoolVar(&flags.printProgressBar, "p", false, "print progress bar")
 	flag.StringVar(&flags.dotenvFilename, "env-file", ".env", "load env file")
+	flag.StringVar(&flags.refetchDatabase, "refetch-db", "", "re-fetching from sqlite3")
 	flag.StringVar(&flags.consumerKey, "consumer-key", "", "Twitter application consumer key")
 	flag.StringVar(&flags.consumerSecret, "consumer-secret", "", "Twitter application consumer secret")
 	flag.StringVar(&flags.accessToken, "access-token", "", "Twitter user access token")
@@ -40,7 +42,8 @@ func main() {
 	fallbackEnv(&flags.accessToken, os.Getenv("TW_ACCESS_TOKEN"))
 	fallbackEnv(&flags.accessSecret, os.Getenv("TW_ACCESS_SECRET"))
 
-	store, err := NewCrawlerStore()
+	fallbackEnv(&flags.refetchDatabase, "last.id")
+	store, err := NewCrawlerStore(flags.refetchDatabase, flags.refetchDatabase != "last.id")
 	if err != nil {
 		log.Fatalf("Error: %s", err)
 	}

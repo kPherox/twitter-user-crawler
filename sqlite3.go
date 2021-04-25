@@ -33,7 +33,48 @@ func (s *SQLite3) Close() error {
 }
 
 func (s *SQLite3) GetLast() (id int64, err error) {
-	err = s.db.QueryRow("SELECT id FROM user ORDER BY id DESC LIMIT 1").Scan(&id)
+	err = s.db.QueryRow("SELECT MAX(id) FROM user").Scan(&id)
+	return
+}
+
+func (s *SQLite3) GetFirst() (id int64, err error) {
+	err = s.db.QueryRow("SELECT MIN(id) FROM user").Scan(&id)
+	return
+}
+
+func (s *SQLite3) GetIDs(limit int64) (ids []int64, err error) {
+	stmt, err := s.db.Prepare("SELECT id FROM user ORDER BY id LIMIT ?")
+	if err != nil {
+		return
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(limit)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id int64
+		err = rows.Scan(&id)
+		if err != nil {
+			return
+		}
+		ids = append(ids, id)
+	}
+	err = rows.Err()
+	return
+}
+
+func (s *SQLite3) DeleteIDs(ltoe int64) (err error) {
+	stmt, err := s.db.Prepare("DELETE FROM user WHERE id <= ?")
+	if err != nil {
+		return
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(ltoe)
 	return
 }
 
