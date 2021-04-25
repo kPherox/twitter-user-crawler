@@ -71,7 +71,6 @@ func main() {
 	pb := newProgressBar(*bFlag, max)
 	defer func() {
 		cancel()
-		pb.Finish()
 	}()
 	var rLimit syscall.Rlimit
 	err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit)
@@ -132,11 +131,14 @@ func main() {
 	if !*bFlag && hasNothing {
 		fmt.Println()
 	}
+	pb.Finish()
 
 	close(nothing)
 	close(found)
+	count := 0
 	ums := make(map[int][]UserModel)
 	for us := range found {
+		count += len(us)
 		for _, u := range us {
 			t, _ := time.Parse(time.RubyDate, u.CreatedAt)
 			if _, ok := ums[t.Year()]; ok {
@@ -146,6 +148,11 @@ func main() {
 			}
 		}
 	}
+	if count <= 0 {
+		fmt.Println("Not Found user IDs")
+		return
+	}
+	fmt.Printf("Found %d user IDs\n", count)
 
 	if err := os.Mkdir("db", 0755); err != nil && !os.IsExist(err) {
 		log.Fatalf("Error: %s", err)
