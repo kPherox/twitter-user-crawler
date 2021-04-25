@@ -21,7 +21,23 @@ func (cs *CrawlerStore) Close() error {
 	return cs.bf.Close()
 }
 
-func (cs *CrawlerStore) GetLastOffset() int64 {
+func (cs *CrawlerStore) GetIDs(max int) [][]int64 {
+	offset := cs.getLastOffset()
+
+	chunks := make([][]int64, max)
+	for ci := 0; ci < max; ci++ {
+		ids := make([]int64, 100)
+		for i := 0; i < 100; i++ {
+			offset++
+			ids[i] = offset
+		}
+		chunks[ci] = ids
+	}
+
+	return chunks
+}
+
+func (cs *CrawlerStore) getLastOffset() int64 {
 	var r int64
 	if err := binary.Read(cs.bf, binary.LittleEndian, &r); err != nil {
 		if _, err := os.Stat("twitter.db"); os.IsNotExist(err) {

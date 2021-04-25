@@ -45,7 +45,6 @@ func main() {
 		log.Fatalf("Error: %s", err)
 	}
 	defer store.Close()
-	offset := store.GetLastOffset()
 
 	if flags.consumerKey == "" || flags.consumerSecret == "" {
 		log.Fatal("Error: Application Access Token required")
@@ -78,10 +77,6 @@ func main() {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	var wg sync.WaitGroup
-	found := make(chan []twitter.User, max)
-	nothing := make(chan int64, max)
-	workerErr := make(chan error, max)
 
 	pb := newProgressBar(flags.printProgressBar, max)
 	defer func() {
@@ -92,16 +87,22 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error: %s", err)
 	}
-	semaphore := make(chan struct{}, rLimit.Cur)
-	for max > 0 {
-		wg.Add(1)
-		go func(offset int64) {
-			ids := make([]int64, 100)
-			var i int64
-			for i = 1; i <= 100; i++ {
-				ids[i-1] = offset + i
-			}
 
+	var (
+		wg        sync.WaitGroup
+		semaphore = make(chan struct{}, rLimit.Cur)
+		found     = make(chan []twitter.User, max)
+		nothing   = make(chan []int64, max)
+		workerErr = make(chan error, max)
+	)
+	ics := store.GetIDs(max)
+	for _, ids := range ics {
+		wg.Add(1)
+		if len(ids) == 0 {
+			wg.Done()
+			continue
+		}
+		go func(ids []int64) {
 			semaphore <- struct{}{}
 			defer func() {
 				<-semaphore
@@ -114,14 +115,12 @@ func main() {
 				return
 			}
 			if len(us) == 0 {
-				nothing <- offset
+				nothing <- ids
 				return
 			}
 			found <- us
 			return
-		}(offset)
-		offset += 100
-		max -= 1
+		}(ids)
 	}
 
 	go func() {
@@ -138,12 +137,18 @@ func main() {
 	if !flags.printProgressBar {
 		go func() {
 			for o := range nothing {
+				var (
+					f string
+					s = o[0]
+					e = o[len(o)-1]
+				)
 				if !hasNothing {
-					fmt.Printf("Nothing: %d..%d", o+1, o+100)
+					f = "Nothing: %d..%d"
 					hasNothing = true
 				} else {
-					fmt.Printf(", %d..%d", o+1, o+100)
+					f = ", %d..%d"
 				}
+				fmt.Printf(f, s, e)
 			}
 		}()
 	}
@@ -190,7 +195,8 @@ func main() {
 		}
 	}
 
-	if err := store.SetLastOffset(offset); err != nil {
+	ids := ics[len(ics)-1]
+	if err := store.SetLastOffset(ids[len(ids)-1]); err != nil {
 		log.Fatalf("Error: %s", err)
 	}
 }
