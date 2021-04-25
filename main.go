@@ -190,8 +190,7 @@ func main() {
 		}
 	}
 
-	_, err = store.SetLastOffset(offset)
-	if err != nil {
+	if err := store.SetLastOffset(offset); err != nil {
 		log.Fatalf("Error: %s", err)
 	}
 }
