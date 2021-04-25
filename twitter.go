@@ -11,10 +11,25 @@ import (
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
 	"github.com/dghubble/sling"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/clientcredentials"
 )
 
 type Twitter struct {
 	client *sling.Sling
+}
+
+func NewTwitterApp(ck, cs string) *Twitter {
+	config := &clientcredentials.Config{
+		ClientID:     ck,
+		ClientSecret: cs,
+		TokenURL:     "https://api.twitter.com/oauth2/token",
+	}
+	ctx := context.WithValue(oauth2.NoContext, oauth2.HTTPClient, http.Client{
+		Transport: &http2.Transport{},
+	})
+	httpClient := config.Client(ctx)
+	return &Twitter{sling.New().Client(httpClient).Base("https://api.twitter.com/1.1/")}
 }
 
 func NewTwitter(ck, cs, at, as string) *Twitter {

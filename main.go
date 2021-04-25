@@ -15,14 +15,30 @@ import (
 )
 
 func main() {
-	bFlag := flag.Bool("b", false, "show progress bar")
-	envFile := flag.String("e", ".env", "load env file")
+	flags := struct {
+		printProgressBar bool
+		dotenvFilename   string
+		consumerKey      string
+		consumerSecret   string
+		accessToken      string
+		accessSecret     string
+	}{}
+	flag.BoolVar(&flags.printProgressBar, "p", false, "print progress bar")
+	flag.StringVar(&flags.dotenvFilename, "env-file", ".env", "load env file")
+	flag.StringVar(&flags.consumerKey, "consumer-key", "", "Twitter application consumer key")
+	flag.StringVar(&flags.consumerSecret, "consumer-secret", "", "Twitter application consumer secret")
+	flag.StringVar(&flags.accessToken, "access-token", "", "Twitter user access token")
+	flag.StringVar(&flags.accessSecret, "access-secret", "", "Twitter user access secret")
 	flag.Parse()
 
-	err := godotenv.Load(*envFile)
+	err := godotenv.Load(flags.dotenvFilename)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: loading %s file\n", *envFile)
+		fmt.Fprintf(os.Stderr, "Error: loading %s file\n", flags.dotenvFilename)
 	}
+	fallbackEnv(&flags.consumerKey, os.Getenv("TW_CONSUMER_KEY"))
+	fallbackEnv(&flags.consumerSecret, os.Getenv("TW_CONSUMER_SECRET"))
+	fallbackEnv(&flags.accessToken, os.Getenv("TW_ACCESS_TOKEN"))
+	fallbackEnv(&flags.accessSecret, os.Getenv("TW_ACCESS_SECRET"))
 
 	store, err := NewCrawlerStore()
 	if err != nil {
@@ -31,16 +47,15 @@ func main() {
 	defer store.Close()
 	offset := store.GetLastOffset()
 
-	var (
-		ck = os.Getenv("TW_CONSUMER_KEY")
-		cs = os.Getenv("TW_CONSUMER_SECRET")
-		at = os.Getenv("TW_ACCESS_TOKEN")
-		as = os.Getenv("TW_ACCESS_SECRET")
-	)
-	if ck == "" || cs == "" || at == "" || as == "" {
-		log.Fatal("Error: Not Fonnd OAuth Token")
+	if flags.consumerKey == "" || flags.consumerSecret == "" {
+		log.Fatal("Error: Application Access Token required")
 	}
-	client := NewTwitter(ck, cs, at, as)
+	var client *Twitter
+	if flags.accessToken == "" || flags.accessSecret == "" {
+		client = NewTwitterApp(flags.consumerKey, flags.consumerSecret)
+	} else {
+		client = NewTwitter(flags.consumerKey, flags.consumerSecret, flags.accessToken, flags.accessSecret)
+	}
 
 	rl, err := client.CheckRateLimit()
 	if err != nil {
@@ -68,7 +83,7 @@ func main() {
 	nothing := make(chan int64, max)
 	workerErr := make(chan error, max)
 
-	pb := newProgressBar(*bFlag, max)
+	pb := newProgressBar(flags.printProgressBar, max)
 	defer func() {
 		cancel()
 	}()
@@ -114,7 +129,7 @@ func main() {
 	}()
 
 	hasNothing := false
-	if !*bFlag {
+	if !flags.printProgressBar {
 		go func() {
 			for o := range nothing {
 				if !hasNothing {
@@ -128,7 +143,7 @@ func main() {
 	}
 
 	wg.Wait()
-	if !*bFlag && hasNothing {
+	if !flags.printProgressBar && hasNothing {
 		fmt.Println()
 	}
 	pb.Finish()
@@ -172,5 +187,11 @@ func main() {
 	_, err = store.SetLastOffset(offset)
 	if err != nil {
 		log.Fatalf("Error: %s", err)
+	}
+}
+
+func fallbackEnv(v *string, fb string) {
+	if *v == "" || v == nil {
+		*v = fb
 	}
 }
