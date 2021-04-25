@@ -28,8 +28,8 @@ func NewSQLite3(filename string) (s *SQLite3, err error) {
 	return
 }
 
-func (s *SQLite3) Close() {
-	s.db.Close()
+func (s *SQLite3) Close() error {
+	return s.db.Close()
 }
 
 func (s *SQLite3) GetLast() (id int64, err error) {
@@ -43,6 +43,7 @@ func (s *SQLite3) BulkInsert(us []UserModel) (err error) {
 	if err != nil {
 		return
 	}
+	defer stmt.Close()
 
 	_, err = stmt.Exec(ids...)
 	if err != nil {

@@ -17,8 +17,8 @@ func NewCrawlerStore() (*CrawlerStore, error) {
 	return &CrawlerStore{lf}, nil
 }
 
-func (cs *CrawlerStore) Close() {
-	cs.lf.Close()
+func (cs *CrawlerStore) Close() error {
+	return cs.lf.Close()
 }
 
 func (cs *CrawlerStore) GetLastOffset() int64 {

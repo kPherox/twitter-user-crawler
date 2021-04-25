@@ -80,14 +80,14 @@ func (t *Twitter) checkRateLimit() (rl *twitter.RateLimit, apiError *twitter.API
 	return
 }
 
-func (t *Twitter) UserLookup(ctx context.Context, offset int64) (us []twitter.User, err error) {
+func (t *Twitter) UserLookup(ctx context.Context, ids []int64) (us []twitter.User, err error) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		default:
 			var apiError *twitter.APIError
-			us, apiError, err = t.userLockup(ctx, offset)
+			us, apiError, err = t.userLockup(ctx, ids)
 			if err != nil {
 				return
 			}
@@ -107,14 +107,8 @@ func (t *Twitter) UserLookup(ctx context.Context, offset int64) (us []twitter.Us
 	}
 }
 
-func (t *Twitter) userLockup(ctx context.Context, offset int64) (us []twitter.User, apiError *twitter.APIError, err error) {
-	si := make([]int64, 100)
-	var i int64
-	for i = 1; i <= 100; i++ {
-		si[i-1] = offset + i
-	}
-
-	req, err := t.client.New().Get("users/lookup.json").QueryStruct(&twitter.UserLookupParams{UserID: si}).Request()
+func (t *Twitter) userLockup(ctx context.Context, ids []int64) (us []twitter.User, apiError *twitter.APIError, err error) {
+	req, err := t.client.New().Get("users/lookup.json").QueryStruct(&twitter.UserLookupParams{UserID: ids}).Request()
 	if err != nil {
 		return
 	}

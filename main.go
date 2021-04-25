@@ -96,13 +96,19 @@ func main() {
 	for max > 0 {
 		wg.Add(1)
 		go func(offset int64) {
+			ids := make([]int64, 100)
+			var i int64
+			for i = 1; i <= 100; i++ {
+				ids[i-1] = offset + i
+			}
+
 			semaphore <- struct{}{}
 			defer func() {
 				<-semaphore
 				pb.Increment()
 				wg.Done()
 			}()
-			us, err := client.UserLookup(ctx, offset)
+			us, err := client.UserLookup(ctx, ids)
 			if err != nil {
 				workerErr <- err
 				return
@@ -191,7 +197,7 @@ func main() {
 }
 
 func fallbackEnv(v *string, fb string) {
-	if *v == "" || v == nil {
+	if *v == "" {
 		*v = fb
 	}
 }
