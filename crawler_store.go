@@ -35,6 +35,7 @@ func (cs *CrawlerStore) GetLastOffset() int64 {
 		db.Close()
 		return offset
 	}
+
 	return int64(data[0]) |
 		int64(data[1])<<8 |
 		int64(data[2])<<16 |
@@ -47,6 +48,7 @@ func (cs *CrawlerStore) GetLastOffset() int64 {
 
 func (cs *CrawlerStore) SetLastOffset(offset int64) (int, error) {
 	cs.lf.Truncate(0)
+	cs.lf.Seek(0, 0)
 	buf := make([]byte, 8)
 	buf[0] = byte(0xff & offset)
 	buf[1] = byte(0xff & (offset >> 8))
