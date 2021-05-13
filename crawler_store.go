@@ -65,11 +65,9 @@ func (cs *CrawlerStore) getIDsFromDB(max int) [][]int64 {
 	chunks := make([][]int64, 0, max)
 	for i := 0; i < len(ids); i += 100 {
 		end := i + 100
-
 		if end > len(ids) {
 			end = len(ids)
 		}
-
 		chunks = append(chunks, ids[i:end])
 	}
 

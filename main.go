@@ -179,21 +179,9 @@ func main() {
 	}
 	if count <= 0 {
 		fmt.Println("Not Found user IDs")
-		return
-	}
-	fmt.Printf("Found %d user IDs\n", count)
-
-	if err := os.Mkdir("db", 0755); err != nil && !os.IsExist(err) {
-		log.Fatalf("Error: %s", err)
-	}
-	for y, us := range ums {
-		db, err := NewSQLite3(fmt.Sprintf("db/%d.db", y))
-		if err != nil {
-			log.Fatalf("Error: %s", err)
-		}
-		defer db.Close()
-		err = db.BulkInsert(us)
-		if err != nil {
+	} else {
+		fmt.Printf("Found %d user IDs\n", count)
+		if err := saveToDB(ums); err != nil {
 			log.Fatalf("Error: %s", err)
 		}
 	}
@@ -208,4 +196,26 @@ func fallbackEnv(v *string, fb string) {
 	if *v == "" {
 		*v = fb
 	}
+}
+
+func saveToDB(ums map[int][]UserModel) (err error) {
+	err = os.Mkdir("db", 0755)
+	if err != nil && !os.IsExist(err) {
+		return
+	}
+	err = nil
+
+	for y, us := range ums {
+		var db *SQLite3
+		db, err = NewSQLite3(fmt.Sprintf("db/%d.db", y))
+		if err != nil {
+			return
+		}
+		err = db.BulkInsert(us)
+		db.Close()
+		if err != nil {
+			return
+		}
+	}
+	return
 }
