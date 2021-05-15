@@ -99,6 +99,9 @@ func main() {
 		workerErr = make(chan error, max)
 	)
 	ics := store.GetIDs(max)
+	if len(ics) == 0 {
+		log.Fatalf("Not Found user IDs from %s", flags.refetchDatabase)
+	}
 	for _, ids := range ics {
 		wg.Add(1)
 		if len(ids) == 0 {
