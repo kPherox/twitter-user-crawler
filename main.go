@@ -110,34 +110,35 @@ func main() {
 			defer func() {
 				<-semaphore
 				pb.Increment()
-				wg.Done()
 			}()
 			us, err := client.UserLookup(ctx, ids)
 			if err != nil {
-				workerErr <- err
-				return
+				switch err {
+				case context.Canceled:
+					return
+				default:
+					workerErr <- err
+					wg.Done()
+					return
+				}
 			}
 			if len(us) == 0 {
 				nothing <- ids
+				wg.Done()
 				return
 			}
 			found <- us
+			wg.Done()
 			return
 		}(ids)
 	}
 
-	go func() {
-		for {
-			select {
-			case err := <-workerErr:
-				cancel()
-				log.Fatalf("Error: %s", err)
-			}
-		}
-	}()
-
-	hasNothing := false
+	var (
+		nwg        sync.WaitGroup
+		hasNothing = false
+	)
 	if !flags.printProgressBar {
+		nwg.Add(1)
 		go func() {
 			for o := range nothing {
 				var (
@@ -153,16 +154,31 @@ func main() {
 				}
 				fmt.Printf(f, s, e)
 			}
+			if hasNothing {
+				fmt.Println()
+			}
+			nwg.Done()
 		}()
 	}
 
+	go func() {
+		for {
+			select {
+			case err := <-workerErr:
+				cancel()
+				close(nothing)
+				nwg.Wait()
+				log.Fatalf("Error: %s", err)
+			}
+		}
+	}()
+
 	wg.Wait()
-	if !flags.printProgressBar && hasNothing {
-		fmt.Println()
-	}
+	close(nothing)
+	nwg.Wait()
+
 	pb.Finish()
 
-	close(nothing)
 	close(found)
 	count := 0
 	ums := make(map[int][]UserModel)

@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"golang.org/x/net/http2"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/clientcredentials"
 
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
 	"github.com/dghubble/sling"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/clientcredentials"
 )
 
 type Twitter struct {
@@ -84,6 +84,7 @@ func (t *Twitter) UserLookup(ctx context.Context, ids []int64) (us []twitter.Use
 	for {
 		select {
 		case <-ctx.Done():
+			err = ctx.Err()
 			return
 		default:
 			var apiError *twitter.APIError
