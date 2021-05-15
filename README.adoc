@@ -1,0 +1,52 @@
+= twitter-user-crawler
+
+TwitterのユーザーIDをクロールして ``$(pwd)/db/<year>.db`` に ``CREATE TABLE user (id INTEGER PRIMARY KEY NOT NULL, created_at timestamp);`` の SQLite Database を作成します
+
+== Requirements
+* Golang
+** Development version: 1.16.3
+* SQLite
+** Development version: 3.35.5
+
+== Installation
+[source, shell]
+----
+go install github.com/kpherox/twitter-user-crawler@latest
+# for Linux
+go install -tags 'linux' github.com/kpherox/twitter-user-crawler@latest
+go install -tags 'libsqlite3 linux' github.com/kpherox/twitter-user-crawler@latest
+# for macOS
+go install -tags 'darwin' github.com/kpherox/twitter-user-crawler@latest
+go install -tags 'libsqlite3 darwin' github.com/kpherox/twitter-user-crawler@latest
+----
+
+== Usage
+`last.id` を作成して最後に取得したIDを保持します
+
+.app auth
+[source, shell]
+----
+twitter-user-crawler \
+    -consumer-key <twitter_application_key> \
+    -consumer-secret <twitter_application_secret>
+# or
+export TW_CONSUMER_KEY=<twitter_application_key>
+export TW_CONSUMER_SECRET=<twitter_application_secret>
+twitter-user-crawler
+----
+
+.user auth
+[source, shell]
+----
+twitter-user-crawler \
+    -consumer-key <twitter_application_key> \
+    -consumer-secret <twitter_application_secret> \
+    -access-token <twitter_user_access_token> \
+    -access-secret <twitter_user_access_secret>
+# or
+export TW_CONSUMER_KEY=<twitter_application_key>
+export TW_CONSUMER_SECRET=<twitter_application_secret>
+export TW_ACCESS_TOKEN=<twitter_user_access_token>
+export TW_ACCESS_SECRET=<twitter_user_access_secret>
+twitter-user-crawler
+----
