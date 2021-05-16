@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"golang.org/x/net/http2"
@@ -43,22 +44,20 @@ func NewTwitter(ck, cs, at, as string) *Twitter {
 }
 
 func (t *Twitter) CheckRateLimit() (rl *twitter.RateLimit, err error) {
+	var apiError *twitter.APIError
 	for {
-		var apiError *twitter.APIError
 		rl, apiError, err = t.checkRateLimit()
-		if err != nil {
-			if urlError, ok := err.(*url.Error); ok && urlError.Error() == "net/http: TLS handshake timeout" {
-				time.Sleep(500 * time.Millisecond)
-				continue
-			} else {
-				return
-			}
-		}
-		if apiError == nil || apiError.Empty() {
+		if err == nil && (apiError == nil || apiError.Empty()) {
 			return
 		}
-		if !apiError.Empty() {
+		if err == nil {
 			err = apiError
+			return
+		}
+		if urlError, ok := err.(*url.Error); ok && strings.HasSuffix(urlError.Error(), "net/http: TLS handshake timeout") {
+			time.Sleep(500 * time.Millisecond)
+			continue
+		} else {
 			return
 		}
 	}
