@@ -121,7 +121,6 @@ func main() {
 					return
 				default:
 					workerErr <- err
-					wg.Done()
 					return
 				}
 			}
