@@ -80,11 +80,9 @@ func main() {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	pb := newProgressBar(flags.printProgressBar, max)
-	defer func() {
-		cancel()
-	}()
 	var rLimit syscall.Rlimit
 	err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit)
 	if err != nil {
@@ -164,14 +162,14 @@ func main() {
 	}
 
 	go func() {
-		for {
-			select {
-			case err := <-workerErr:
-				cancel()
-				close(nothing)
-				nwg.Wait()
-				log.Fatalf("Error: %s", err)
-			}
+		select {
+		case <-ctx.Done():
+			return
+		case err := <-workerErr:
+			cancel()
+			close(nothing)
+			nwg.Wait()
+			log.Fatalf("Error: %s", err)
 		}
 	}()
 
@@ -191,7 +189,7 @@ func main() {
 			if _, ok := ums[t.Year()]; ok {
 				ums[t.Year()] = append(ums[t.Year()], UserModel{u.ID, t})
 			} else {
-				ums[t.Year()] = []UserModel{UserModel{u.ID, t}}
+				ums[t.Year()] = []UserModel{{u.ID, t}}
 			}
 		}
 	}
