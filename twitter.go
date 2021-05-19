@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"golang.org/x/net/http2"
@@ -54,55 +53,46 @@ func (t *Twitter) CheckRateLimit() (rl *twitter.RateLimit, err error) {
 			err = apiError
 			return
 		}
-		if urlError, ok := err.(*url.Error); ok && strings.HasSuffix(urlError.Error(), "net/http: TLS handshake timeout") {
+		if urlError, ok := err.(*url.Error); ok && urlError.Err.Error() == "net/http: TLS handshake timeout" {
 			time.Sleep(500 * time.Millisecond)
 			continue
-		} else {
-			return
 		}
+		return
 	}
 }
 
 func (t *Twitter) checkRateLimit() (rl *twitter.RateLimit, apiError *twitter.APIError, err error) {
 	rl = new(twitter.RateLimit)
 	apiError = new(twitter.APIError)
-	req, err := t.client.New().Get("application/rate_limit_status.json").QueryStruct(&twitter.RateLimitParams{Resources: []string{"users"}}).Request()
-	if err != nil {
-		return
-	}
-
-	_, err = t.client.Do(req, rl, apiError)
-	if err != nil {
-		return
-	}
-
+	_, err = t.client.New().Get("application/rate_limit_status.json").QueryStruct(&twitter.RateLimitParams{Resources: []string{"users"}}).Receive(rl, apiError)
 	return
 }
 
 func (t *Twitter) UserLookup(ctx context.Context, ids []int64) (us []twitter.User, err error) {
+	var apiError *twitter.APIError
 	for {
 		select {
 		case <-ctx.Done():
 			err = ctx.Err()
 			return
 		default:
-			var apiError *twitter.APIError
 			us, apiError, err = t.userLockup(ctx, ids)
 			if err != nil {
+				if urlError, ok := err.(*url.Error); ok && urlError.Err.Error() == "net/http: TLS handshake timeout" {
+					time.Sleep(500 * time.Millisecond)
+					continue
+				}
 				return
 			}
-			if apiError == nil || apiError.Empty() {
+			if apiError == nil || apiError.Empty() || apiError.Errors[0].Code == 17 {
 				return
 			}
-			errDetail := apiError.Errors[0]
-			if errDetail.Code == 17 {
-				return
-			}
-			if errDetail.Code == 88 {
+			if apiError.Errors[0].Code == 88 {
+				// Rate limit exceeded
 				err = apiError
 				return
 			}
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(1000 * time.Millisecond)
 		}
 	}
 }
