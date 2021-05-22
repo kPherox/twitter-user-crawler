@@ -54,9 +54,9 @@ func main() {
 	}
 	var client *Twitter
 	if flags.accessToken == "" || flags.accessSecret == "" {
-		client = NewTwitterApp(flags.consumerKey, flags.consumerSecret)
+		client = NewAppModeTwitter(flags.consumerKey, flags.consumerSecret)
 	} else {
-		client = NewTwitter(flags.consumerKey, flags.consumerSecret, flags.accessToken, flags.accessSecret)
+		client = NewUserModeTwitter(flags.consumerKey, flags.consumerSecret, flags.accessToken, flags.accessSecret)
 	}
 
 	rl, err := client.CheckRateLimit()
@@ -122,7 +122,7 @@ func main() {
 					return
 				}
 			}
-			if len(us) == 0 {
+			if us == nil || len(us) == 0 {
 				nothing <- ids
 				wg.Done()
 				return

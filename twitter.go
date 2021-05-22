@@ -19,7 +19,7 @@ type Twitter struct {
 	client *sling.Sling
 }
 
-func NewTwitterApp(ck, cs string) *Twitter {
+func NewAppModeTwitter(ck, cs string) *Twitter {
 	config := &clientcredentials.Config{
 		ClientID:     ck,
 		ClientSecret: cs,
@@ -28,18 +28,20 @@ func NewTwitterApp(ck, cs string) *Twitter {
 	ctx := context.WithValue(oauth2.NoContext, oauth2.HTTPClient, http.Client{
 		Transport: &http2.Transport{},
 	})
-	httpClient := config.Client(ctx)
-	return &Twitter{sling.New().Client(httpClient).Base("https://api.twitter.com/1.1/")}
+	return NewTwitter(config.Client(ctx))
 }
 
-func NewTwitter(ck, cs, at, as string) *Twitter {
+func NewUserModeTwitter(ck, cs, at, as string) *Twitter {
 	config := oauth1.NewConfig(ck, cs)
 	token := oauth1.NewToken(at, as)
 	ctx := context.WithValue(oauth1.NoContext, oauth1.HTTPClient, http.Client{
 		Transport: &http2.Transport{},
 	})
-	httpClient := config.Client(ctx, token)
-	return &Twitter{sling.New().Client(httpClient).Base("https://api.twitter.com/1.1/")}
+	return NewTwitter(config.Client(ctx, token))
+}
+
+func NewTwitter(c *http.Client) *Twitter {
+	return &Twitter{sling.New().Client(c).Base("https://api.twitter.com/1.1/")}
 }
 
 func (t *Twitter) CheckRateLimit() (rl *twitter.RateLimit, err error) {
@@ -76,7 +78,7 @@ func (t *Twitter) UserLookup(ctx context.Context, ids []int64) (us []twitter.Use
 			err = ctx.Err()
 			return
 		default:
-			us, apiError, err = t.userLockup(ctx, ids)
+			us, apiError, err = t.userLookup(ctx, ids)
 			if err != nil {
 				if urlError, ok := err.(*url.Error); ok && urlError.Err.Error() == "net/http: TLS handshake timeout" {
 					time.Sleep(500 * time.Millisecond)
@@ -97,7 +99,7 @@ func (t *Twitter) UserLookup(ctx context.Context, ids []int64) (us []twitter.Use
 	}
 }
 
-func (t *Twitter) userLockup(ctx context.Context, ids []int64) (us []twitter.User, apiError *twitter.APIError, err error) {
+func (t *Twitter) userLookup(ctx context.Context, ids []int64) (us []twitter.User, apiError *twitter.APIError, err error) {
 	req, err := t.client.New().Get("users/lookup.json").QueryStruct(&twitter.UserLookupParams{UserID: ids}).Request()
 	if err != nil {
 		return
