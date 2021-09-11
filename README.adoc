@@ -11,13 +11,13 @@ TwitterのユーザーIDをクロールして ``$(pwd)/db/<year>.db`` に ``CREA
 == Installation
 [source, shell]
 ----
-go install github.com/kpherox/twitter-user-crawler@latest
+go install github.com/kphrx/twitter-user-crawler@latest
 # for Linux
-go install -tags 'linux' github.com/kpherox/twitter-user-crawler@latest
-go install -tags 'libsqlite3 linux' github.com/kpherox/twitter-user-crawler@latest
+go install -tags 'linux' github.com/kphrx/twitter-user-crawler@latest
+go install -tags 'libsqlite3 linux' github.com/kphrx/twitter-user-crawler@latest
 # for macOS
-go install -tags 'darwin' github.com/kpherox/twitter-user-crawler@latest
-go install -tags 'libsqlite3 darwin' github.com/kpherox/twitter-user-crawler@latest
+go install -tags 'darwin' github.com/kphrx/twitter-user-crawler@latest
+go install -tags 'libsqlite3 darwin' github.com/kphrx/twitter-user-crawler@latest
 ----
 
 == Usage
